@@ -1,46 +1,14 @@
-const fileInput = document.getElementById('file-input');
-const frameContainer = document.getElementById('frame-container');
-const renderBtn = document.getElementById('render-btn');
-const outputArea = document.getElementById('output-area');
-
-let frames = [];
-
-fileInput.addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files);
-    for (const file of files) {
-        const url = URL.createObjectURL(file);
-        addFrameToUI(url);
-    }
-});
-
-function addFrameToUI(url) {
-    const id = Date.now() + Math.random();
-    const div = document.createElement('div');
-    div.className = 'frame-card';
-    div.dataset.id = id;
-    div.innerHTML = `
-        <button class="remove-btn" onclick="removeFrame(${id})">×</button>
-        <img src="${url}">
-        <input type="number" class="frame-delay" placeholder="Delay (ms)" value="">
-    `;
-    frameContainer.appendChild(div);
-    frames.push({ id, url });
-}
-
-window.removeFrame = (id) => {
-    frames = frames.filter(f => f.id !== id);
-    document.querySelector(`[data-id="${id}"]`).remove();
-};
-
 renderBtn.addEventListener('click', () => {
     if (frames.length === 0) return alert("Add frames first");
 
     const globalDelay = document.getElementById('global-delay').value;
     const loop = document.getElementById('loop-count').value;
+    const quality = parseInt(document.getElementById('quality-slider').value);
+    const targetWidth = parseInt(document.getElementById('resize-width').value);
     
     const gif = new GIF({
         workers: 4,
-        quality: 10,
+        quality: quality, // Lower quality value in GIF.js = better quality, higher = faster/smaller
         workerScript: 'gif.worker.js',
         repeat: loop
     });
@@ -52,22 +20,49 @@ renderBtn.addEventListener('click', () => {
         const img = el.querySelector('img');
         const specificDelay = el.querySelector('.frame-delay').value;
         
-        // Ensure image is loaded before adding to GIF
         const tempImg = new Image();
         tempImg.onload = () => {
-            gif.addFrame(tempImg, { delay: specificDelay || globalDelay });
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Logic for Resizing
+            let width = tempImg.width;
+            let height = tempImg.height;
+
+            if (targetWidth && targetWidth < width) {
+                const ratio = targetWidth / width;
+                width = targetWidth;
+                height = tempImg.height * ratio;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw image to canvas (downsampling)
+            ctx.drawImage(tempImg, 0, 0, width, height);
+            
+            gif.addFrame(canvas, { 
+                delay: specificDelay || globalDelay,
+                copy: true // Required when passing a canvas
+            });
+
             loadedCount++;
-            if (loadedCount === frameElements.length) gif.render();
+            if (loadedCount === frameElements.length) {
+                outputArea.innerHTML = "<p>Optimizing and Rendering...</p>";
+                gif.render();
+            }
         };
         tempImg.src = img.src;
     });
 
     gif.on('finished', (blob) => {
         const url = URL.createObjectURL(blob);
+        const sizeInMB = (blob.size / (1024 * 1024)).toFixed(2);
+        
         outputArea.innerHTML = `
-            <h3>Result:</h3>
+            <h3>Result (${sizeInMB} MB):</h3>
             <img src="${url}"><br>
-            <a href="${url}" download="animation.gif"><button style="margin-top:10px">Download GIF</button></a>
+            <a href="${url}" download="optimized.gif"><button style="margin-top:10px">Download Optimized GIF</button></a>
         `;
     });
 });
