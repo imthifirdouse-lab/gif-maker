@@ -2,473 +2,97 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Card: Live Media</title>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIF Maker Pro - Client-Side Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
     <style>
-        :root { --bg: #f3f4f6; --surface: #ffffff; --text: #1f2937; --primary: #6366f1; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); display: flex; height: 100vh; margin: 0; overflow: hidden; color: var(--text); }
-
-        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; justify-content: center; align-items: center; }
-
-        /* LAYOUT */
-        .app-container { display: flex; width: 100%; height: 100%; }
-        @media (max-width: 800px) {
-            .app-container { flex-direction: column; overflow-y: auto; }
-            .input-panel { width: 100%; height: auto; padding: 20px; box-sizing: border-box; }
-            .preview-panel { min-height: 500px; padding: 20px; }
-            body { overflow: auto; }
+        :root { --primary: #2563eb; --primary-hover: #1d4ed8; --bg: #f8fafc; --border: #e2e8f0; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); padding: 2rem; color: #1e293b; line-height: 1.5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        
+        h1 { margin-top: 0; color: #0f172a; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        
+        #drop-zone { 
+            border: 2px dashed var(--primary); border-radius: 12px; padding: 40px; 
+            text-align: center; margin-bottom: 25px; transition: all 0.3s ease; background: #f0f7ff;
+            cursor: pointer;
+        }
+        #drop-zone:hover { border-color: var(--primary-hover); background: #e0efff; }
+        
+        #frame-container { 
+            display: flex; flex-wrap: wrap; gap: 15px; margin: 20px 0; 
+            min-height: 120px; border: 1px solid var(--border); padding: 15px; border-radius: 8px; background: #fff;
+        }
+        
+        .frame-card { width: 140px; border: 1px solid var(--border); border-radius: 6px; padding: 8px; position: relative; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .frame-card img { width: 100%; height: 90px; object-fit: cover; border-radius: 4px; display: block; }
+        .frame-card input { width: 100%; font-size: 11px; margin-top: 8px; padding: 4px; border: 1px solid var(--border); border-radius: 3px; box-sizing: border-box; }
+        
+        .remove-btn { 
+            position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; 
+            border-radius: 50%; cursor: pointer; border: none; width: 24px; height: 24px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        .input-panel { width: 440px; background: var(--surface); padding: 30px; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; z-index: 10; overflow-y: auto; box-sizing: border-box; }
-        .control-section { margin-bottom: 25px; border-bottom: 1px solid #f3f4f6; padding-bottom: 20px; }
-        .control-title { font-size: 11px; font-weight: 800; color: #9ca3af; margin-bottom: 10px; text-transform: uppercase; }
-        .sub-label { font-size: 10px; font-weight: 700; color: #6b7280; margin-bottom: 6px; display: block; }
+        .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 25px; margin: 25px 0; padding: 20px; background: #f1f5f9; border-radius: 8px; }
+        .setting-item label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9rem; }
+        .setting-item small { color: #64748b; display: block; margin-bottom: 5px; font-size: 0.75rem; }
+        .setting-item input[type="number"], .setting-item input[type="range"] { width: 100%; }
 
-        /* INPUTS */
-        .smart-input, .std-input { width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; background: #f9fafb; margin-bottom: 8px; box-sizing: border-box; }
-        .stat-input-group { display: flex; gap: 8px; margin-bottom: 8px; }
-        .emoji-input { width: 40px; text-align: center; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; }
-        .text-input { flex: 1; padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; }
-
-        /* PRESETS */
-        .preset-bar { display: flex; gap: 5px; margin-bottom: 10px; }
-        .preset-btn { font-size: 10px; padding: 4px 8px; border: 1px solid #e5e7eb; background: white; cursor: pointer; border-radius: 4px; }
-        .option-grid, .texture-grid { display: grid; gap: 8px; margin-bottom: 10px; }
-        .option-grid { grid-template-columns: 1fr 1fr; }
-        .texture-grid { grid-template-columns: 1fr 1fr 1fr; }
-        .fx-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-        .option-btn { padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; cursor: pointer; font-size: 10px; font-weight: 600; color: #4b5563; }
-        .option-btn:hover { border-color: var(--primary); }
-        .option-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-
-        /* PREVIEW AREA */
-        .preview-panel { flex: 1; background: #e5e7eb; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; perspective: 1200px; }
-        
-        /* CARD */
-        .card-wrapper { position: relative; background: white; box-shadow: 0 30px 60px rgba(0,0,0,0.3); overflow: hidden; display: flex; transition: transform 0.1s; transform-style: preserve-3d; border-radius: 24px; }
-        .format-landscape { width: 480px; height: 280px; }
-        .format-portrait { width: 320px; height: 568px; flex-direction: column; }
-
-        @media (max-width: 500px) {
-            .format-landscape { width: 340px; height: 200px; }
-            .format-portrait { width: 280px; height: 500px; }
+        #render-btn { 
+            background: var(--primary); color: white; border: none; padding: 15px 30px; 
+            border-radius: 8px; cursor: pointer; font-size: 1.1rem; font-weight: 700; width: 100%; transition: background 0.2s;
         }
+        #render-btn:hover { background: var(--primary-hover); }
 
-        .layer-base, .layer-texture, .layer-finish { position: absolute; top:0; left:0; width:100%; height:100%; }
-        .layer-base { z-index: 1; }
-        .layer-texture { z-index: 2; mix-blend-mode: overlay; pointer-events: none; }
-        .layer-finish { z-index: 3; pointer-events: none; }
-        .layer-glare { position: absolute; top:0; left:0; width:100%; height:100%; z-index: 20; pointer-events: none; mix-blend-mode: overlay; opacity: 0; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.6) 0%, transparent 60%); transition: opacity 0.2s; }
-        
-        .c-content { display: flex; width: 100%; height: 100%; z-index: 10; position: relative; }
-
-        /* THEMES & FX */
-        .theme-instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
-        .theme-linkedin { background: linear-gradient(135deg, #0077b5, #005582); }
-        .theme-twitter { background: linear-gradient(135deg, #1da1f2, #0d8bd9); }
-        .theme-dark { background: #111; }
-        .theme-gold { background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C); }
-        .theme-mesh { background: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%); background-color: #333; }
-        .theme-generic { background: linear-gradient(135deg, #1f2937, #111827); }
-
-        .fx-noise { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E"); }
-        .fx-glass { background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.05) 51%, rgba(0,0,0,0.1) 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.3); }
-        .fx-carbon { background: radial-gradient(black 15%, transparent 16%) 0 0, radial-gradient(black 15%, transparent 16%) 8px 8px, radial-gradient(rgba(255,255,255,0.1) 15%, transparent 20%) 0 1px, radial-gradient(rgba(255,255,255,0.1) 15%, transparent 20%) 8px 9px; background-size: 16px 16px; opacity: 0.2; }
-        .fx-vignette { background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.6) 100%); }
-
-        /* QR CODE */
-        .c-qr { 
-            position: absolute; bottom: 20px; right: 20px;
-            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px);
-            padding: 5px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
-            z-index: 100; display: flex; justify-content: center; align-items: center;
-            width: auto; height: auto;
-        }
-        .c-qr img, .c-qr canvas { display: block; width: var(--qr-size, 50px); height: var(--qr-size, 50px); }
-        .format-landscape.style-classic .c-qr { bottom: 20px; right: 20px; top: auto; }
-
-        /* CONTENT STYLES */
-        .style-classic .c-left { width: 35%; display: flex; justify-content: center; align-items: center; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-right: 1px solid rgba(255,255,255,0.2); }
-        .format-portrait.style-classic .c-left { height: 35%; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.2); border-right: none; }
-        .style-classic .c-right { flex: 1; padding: 30px; display: flex; flex-direction: column; justify-content: center; color: white; }
-        
-        /* AVATAR - Handles both IMG and VIDEO */
-        .style-classic .c-avatar { width: 90px; height: 90px; border-radius: 50%; background: white; border: 4px solid rgba(255,255,255,0.3); display: flex; justify-content: center; align-items: center; overflow: hidden; color: #333; font-weight: 800; font-size: 30px; }
-        .style-modern .c-avatar { width: 100px; height: 100px; border-radius: 25px; background: white; box-shadow: 0 15px 35px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; overflow: hidden; margin-bottom: 15px; color: #333; font-weight: 800; font-size: 35px; border: 2px solid rgba(255,255,255,0.5); }
-
-        .style-modern .c-content { flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; }
-
-        .c-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .c-handle { font-size: 11px; font-weight: 700; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .c-name { font-size: 26px; font-weight: 800; line-height: 1.1; margin-bottom: 5px; text-shadow: 0 2px 10px rgba(0,0,0,0.1); white-space: nowrap; }
-        
-        .c-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; font-weight: 500; opacity: 0.9; }
-        .c-stats-row { display: flex; gap: 12px; margin-bottom: 12px; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); width: fit-content; }
-        .style-modern .c-stats-row { margin: 0 auto 12px auto; }
-        .c-stat-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; }
-        .c-stat-emoji { font-size: 13px; }
-        .c-info-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 6px; font-weight: 500; }
-        
-        .c-tag { display: none; padding: 4px 10px; background: rgba(255,255,255,0.2); border-radius: 20px; font-size: 10px; font-weight: 700; margin-top: auto; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px); }
-
-        .btn-dl { padding: 12px 20px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; gap: 8px; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn-png { background: #1f2937; color: white; }
-        .btn-pdf { background: #ef4444; color: white; }
-        .drop-zone { border: 2px dashed #d1d5db; border-radius: 12px; padding: 20px; text-align: center; background: #f9fafb; cursor: pointer; margin-top: 10px; }
-        .hidden-file { display: none; }
-        .qr-controls { margin-top: 15px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; }
-        .free-mode-toggle { margin-top: 15px; padding: 10px; background: #fff3e0; border: 1px solid #ffe0b2; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .reset-btn { font-size: 10px; color: #d32f2f; cursor: pointer; text-decoration: underline; background: none; border: none; }
-
-        .custom-layout .c-content { display: block; }
-        .custom-layout .c-left { position: absolute; top: 30px; left: 30px; border: none !important; width: auto !important; height: auto !important; }
-        .custom-layout .c-right { position: absolute; top: 30px; left: 150px; width: auto !important; padding: 0 !important; }
-        .custom-layout .c-qr { position: absolute; } 
-
-        .drag-active .drag-el { cursor: move; outline: 1px dashed rgba(255,255,255,0.5); user-select: none; }
-        .drag-active .drag-el:hover { outline: 2px solid #6366f1; }
-        .tilt-btn { background: #2563eb; color: white; font-weight: bold; width: 100%; border: none; padding: 10px; border-radius: 8px; margin-top: 8px; cursor: pointer; }
+        #output-area { margin-top: 30px; text-align: center; }
+        #output-area img { max-width: 100%; border: 4px solid white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .download-btn { display: inline-block; margin-top: 15px; background: #10b981; color: white; padding: 10px 25px; text-decoration: none; border-radius: 6px; font-weight: 600; }
     </style>
 </head>
-<body onload="initApp()">
+<body>
 
-<div id="loader"><h2>Loading...</h2></div>
+<div class="container">
+    <h1>GIF Maker Pro</h1>
+    
+    <div id="drop-zone">
+        <p><strong>Drag & Drop images here</strong></p>
+        <p>or</p>
+        <input type="file" id="file-input" multiple accept="image/*">
+        <p style="font-size: 0.85rem; color: #64748b; margin-top: 10px;">PRO TIP: Press <strong>CTRL+V</strong> to paste images from clipboard</p>
+    </div>
 
-<div class="app-container">
-    <div class="input-panel">
-        <div class="brand"><i class="fas fa-gem"></i> PremiumCard</div>
-        <div class="subtitle">Live Media Suite v7.0</div>
-
-        <div class="control-section">
-            <div class="control-title">1. Content</div>
-            <input type="text" class="smart-input" id="linkInput" placeholder="Paste link..." oninput="analyzeLink()">
-            <div class="drop-zone" id="dropArea" onclick="document.getElementById('fileInput').click()">
-                <i class="fas fa-video"></i> <span>Drag & Drop Logo / GIF / Video</span>
-                <input type="file" id="fileInput" class="hidden-file" accept="image/*,video/*" onchange="handleFileSelect(this)">
-            </div>
+    <div id="frame-container">
         </div>
 
-        <div class="control-section">
-            <div class="control-title">2. Layout</div>
-            <div class="option-grid">
-                <button class="option-btn active" onclick="setFormat('landscape', this)">Landscape</button>
-                <button class="option-btn" onclick="setFormat('portrait', this)">Portrait</button>
-            </div>
-            <div class="option-grid">
-                <button class="option-btn active" onclick="setStyle('classic', this)">Classic</button>
-                <button class="option-btn" onclick="setStyle('modern', this)">Modern</button>
-            </div>
-            
-            <div class="free-mode-toggle">
-                <div>
-                    <div style="font-size:11px; font-weight:700; color:#e65100;">🔓 UNLOCK POSITIONING</div>
-                    <button class="reset-btn" onclick="resetLayout()">Reset to Default</button>
-                </div>
-                <input type="checkbox" id="freeModeCheck" onchange="toggleFreeMode(this)">
-            </div>
-            <button class="tilt-btn" onclick="enableMotion()"><i class="fas fa-mobile-alt"></i> Enable Phone Tilt</button>
+    <div class="settings-grid">
+        <div class="setting-item">
+            <label>Global Delay (ms)</label>
+            <small>Speed of animation</small>
+            <input type="number" id="global-delay" value="200" step="50">
         </div>
-
-        <div class="control-section">
-            <div class="control-title">3. Finishes</div>
-            <div class="texture-grid">
-                <button class="option-btn active" onclick="setTheme('default', this)">Base</button>
-                <button class="option-btn" onclick="setTheme('theme-gold', this)">Gold</button>
-                <button class="option-btn" onclick="setTheme('theme-mesh', this)">Mesh</button>
-            </div>
-            <div class="fx-grid">
-                <button class="option-btn" onclick="toggleFx('fx-glass', this)">Glass</button>
-                <button class="option-btn" onclick="toggleFx('fx-noise', this)">Grain</button>
-                <button class="option-btn" onclick="toggleFx('fx-carbon', this)">Carbon</button>
-                <button class="option-btn" onclick="toggleFx('fx-vignette', this)">Vignette</button>
-            </div>
+        <div class="setting-item">
+            <label>Loop Count</label>
+            <small>0 = Infinite</small>
+            <input type="number" id="loop-count" value="0">
         </div>
-
-        <div class="control-section">
-            <div class="control-title">4. Data & QR</div>
-            <input type="text" class="std-input" id="inName" placeholder="Name" oninput="renderCard()">
-            <input type="text" class="std-input" id="inTitle" placeholder="Subtitle" oninput="renderCard()">
-            <input type="text" class="std-input" id="inContact" placeholder="Contact Info" oninput="renderCard()">
-            
-            <div class="sub-label" style="margin-top:10px;">STATS</div>
-            <div class="preset-bar">
-                <button class="preset-btn" onclick="setEmojis('📸','❤️','👤')">Insta</button>
-                <button class="preset-btn" onclick="setEmojis('🤝','👥','📄')">LinkedIn</button>
-            </div>
-            <div class="stat-input-group"><input type="text" class="emoji-input" id="inEmoji1" value="📸" oninput="renderCard()"><input type="text" class="std-input" id="inStat1" placeholder="Stat 1" oninput="renderCard()"></div>
-            <div class="stat-input-group"><input type="text" class="emoji-input" id="inEmoji2" value="❤️" oninput="renderCard()"><input type="text" class="std-input" id="inStat2" placeholder="Stat 2" oninput="renderCard()"></div>
-            <div class="stat-input-group"><input type="text" class="emoji-input" id="inEmoji3" value="👤" oninput="renderCard()"><input type="text" class="std-input" id="inStat3" placeholder="Stat 3" oninput="renderCard()"></div>
-
-            <div class="qr-controls">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="font-size:11px; font-weight:bold; color:#555;">QR CODE</span>
-                    <input type="checkbox" onchange="toggleQR(this)" checked>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:10px; color:#666;">Size:</span>
-                    <input type="range" id="qrSize" min="30" max="120" value="50" oninput="resizeQR()">
-                </div>
-            </div>
+        <div class="setting-item">
+            <label>Quality (1-20)</label>
+            <small>Higher = Smaller File</small>
+            <input type="range" id="quality-slider" min="1" max="20" value="10">
+        </div>
+        <div class="setting-item">
+            <label>Resize Width (px)</label>
+            <small>Blank = Original size</small>
+            <input type="number" id="resize-width" placeholder="e.g. 600">
         </div>
     </div>
 
-    <div class="preview-panel" id="previewPanel">
-        <div class="card-wrapper format-landscape style-classic" id="captureCard">
-            <div class="layer-base theme-generic" id="cardTheme"></div>
-            <div class="layer-texture" id="cardTexture"></div>
-            <div class="layer-finish" id="cardFinish"></div>
-            <div class="layer-glare" id="cardGlare"></div>
-            
-            <div class="c-content" id="cardContent">
-                <div class="c-left drag-el" id="dragAvatar"><div class="c-avatar" id="outAvatar">IM</div></div>
-                <div class="c-right drag-el" id="dragText">
-                    <div class="c-handle" id="outSource"><i class="fas fa-globe"></i> WEBSITE</div>
-                    <div class="c-name" id="outName">MYBRAND</div>
-                    
-                    <div class="c-title-row" id="outTitleRow" style="display:none;"><i class="fas fa-briefcase"></i> <span id="outTitle">Official Page</span></div>
+    <button id="render-btn">Create & Optimize GIF</button>
 
-                    <div class="c-stats-row" id="outStats" style="display:none;">
-                        <div class="c-stat-item"><span class="c-stat-emoji" id="outEmoji1">📸</span> <span id="valStat1">0</span></div>
-                        <div class="c-stat-item"><span class="c-stat-emoji" id="outEmoji2">❤️</span> <span id="valStat2">0</span></div>
-                        <div class="c-stat-item"><span class="c-stat-emoji" id="outEmoji3">👤</span> <span id="valStat3">0</span></div>
-                    </div>
-
-                    <div class="c-info-row" id="outContactRow" style="display:none;"><i class="fas fa-address-card"></i> <span id="outContact">Contact Info</span></div>
-                    <div class="c-tag" id="outLink"></div>
-                </div>
-            </div>
-            <div class="c-qr drag-el" id="qrContainer"></div>
-        </div>
-
-        <div class="actions" style="display:flex; gap:10px;">
-            <button class="btn-dl btn-png" onclick="downloadPNG()"><i class="fas fa-image"></i> PNG (3D)</button>
-            <button class="btn-dl btn-pdf" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> PDF (Flat)</button>
-        </div>
-        <p style="margin-top:10px; font-size:11px; color:#666;">Note: Animations export as static snapshots.</p>
-    </div>
+    <div id="output-area"></div>
 </div>
 
-<script>
-    let cardState = { name: "MyBrand", link: "", baseClass: "theme-generic", source: "WEBSITE", icon: "fa-globe", fullUrl: "https://example.com" };
-    let isFreeMode = false;
-
-    function initApp() {
-        document.getElementById('loader').style.display='none';
-        generateQR(); 
-        initDrag();
-        init3D(); 
-    }
-
-    // --- QR ENGINE ---
-    function generateQR() {
-        const qrBox = document.getElementById('qrContainer');
-        const isChecked = document.querySelector('.qr-controls input[type="checkbox"]').checked;
-        if (!isChecked) { qrBox.style.display = 'none'; return; }
-        
-        qrBox.style.display = 'flex'; 
-        qrBox.innerHTML = "";
-        
-        new QRCode(qrBox, { 
-            text: cardState.fullUrl, 
-            width: 256, 
-            height: 256, 
-            colorDark : "#000000", 
-            colorLight : "rgba(255,255,255,0)", 
-            correctLevel : QRCode.CorrectLevel.M 
-        });
-        resizeQR(); 
-    }
-
-    function resizeQR() {
-        const size = document.getElementById('qrSize').value;
-        document.getElementById('qrContainer').style.setProperty('--qr-size', size + 'px');
-    }
-
-    // --- ROBUST AUTO-DETECT ---
-    function analyzeLink() {
-        const urlRaw = document.getElementById('linkInput').value.trim();
-        if(!urlRaw) return;
-        
-        let cleanUrl = urlRaw;
-        if (!/^https?:\/\//i.test(urlRaw)) {
-            cleanUrl = 'https://' + urlRaw;
-        }
-        cardState.fullUrl = cleanUrl;
-
-        let domain = "";
-        try {
-            const urlObj = new URL(cleanUrl);
-            domain = urlObj.hostname.toLowerCase();
-        } catch (e) {
-            console.error("Invalid URL");
-            return;
-        }
-
-        let displayUrl = urlRaw.replace(/^https?:\/\//, '').replace(/^www\./, '');
-        let parts = displayUrl.split('/');
-        let handle = parts[1] ? parts[1].split('?')[0] : '';
-
-        let newTheme='theme-generic', newSource='WEBSITE', newIcon='fa-globe';
-
-        if (domain.includes('instagram.com')) { 
-            newTheme='theme-instagram'; newSource='INSTAGRAM'; newIcon='fa-instagram'; 
-            setEmojis('📸','❤️','👤'); 
-        }
-        else if (domain.includes('linkedin.com')) { 
-            newTheme='theme-linkedin'; newSource='LINKEDIN'; newIcon='fa-linkedin'; 
-            setEmojis('🤝','👥','📄'); 
-            if (parts[1] === 'in' && parts[2]) { handle = parts[2].split('?')[0]; }
-        }
-        else if (domain.includes('twitter.com') || domain.includes('x.com')) { 
-            newTheme='theme-twitter'; newSource='TWITTER'; newIcon='fa-twitter'; 
-            setEmojis('🐦','🔁','❤️'); 
-        }
-
-        updateBaseTheme(newTheme, newSource, newIcon);
-        
-        if (handle) {
-            cardState.name = handle;
-            document.getElementById('inName').value = handle;
-        }
-        
-        generateQR();
-        renderCard();
-    }
-
-    // --- RENDER CARD ---
-    function renderCard() {
-        const inName = document.getElementById('inName').value;
-        const inTitle = document.getElementById('inTitle').value;
-        const inContact = document.getElementById('inContact').value;
-        document.getElementById('outName').innerText = inName || cardState.name;
-        document.getElementById('outSource').innerHTML = `<i class="fab ${cardState.icon}"></i> ${cardState.source}`;
-        
-        document.getElementById('outLink').style.display = 'none'; 
-
-        const tr = document.getElementById('outTitleRow'); if(inTitle) { tr.style.display = 'flex'; document.getElementById('outTitle').innerText = inTitle; } else { tr.style.display = 'none'; }
-        const cr = document.getElementById('outContactRow'); if(inContact) { cr.style.display = 'flex'; document.getElementById('outContact').innerText = inContact; } else { cr.style.display = 'none'; }
-        const s1 = document.getElementById('inStat1').value; const s2 = document.getElementById('inStat2').value; const s3 = document.getElementById('inStat3').value; const sr = document.getElementById('outStats');
-        if(s1 || s2 || s3) { sr.style.display = 'flex'; document.getElementById('outEmoji1').innerText = document.getElementById('inEmoji1').value; document.getElementById('valStat1').innerText = s1 || "-"; document.getElementById('outEmoji2').innerText = document.getElementById('inEmoji2').value; document.getElementById('valStat2').innerText = s2 || "-"; document.getElementById('outEmoji3').innerText = document.getElementById('inEmoji3').value; document.getElementById('valStat3').innerText = s3 || "-"; } else { sr.style.display = 'none'; }
-        
-        const av = document.getElementById('outAvatar'); 
-        if((!av.querySelector('img') && !av.querySelector('video')) || (av.querySelector('img') && av.querySelector('img').style.display==='none')) { 
-            av.innerText = (inName || cardState.name).substring(0,2).toUpperCase(); 
-        }
-    }
-    
-    function toggleFreeMode(cb) { isFreeMode = cb.checked; const c=document.getElementById('captureCard'); if(isFreeMode){c.classList.add('drag-active','custom-layout');c.style.transform="none";}else{c.classList.remove('drag-active');} }
-    function resetLayout() { const c=document.getElementById('captureCard'); const a=document.getElementById('dragAvatar'); const t=document.getElementById('dragText'); const q=document.getElementById('qrContainer'); c.classList.remove('custom-layout'); a.style=""; t.style=""; q.style=""; q.style.bottom='20px'; q.style.right='20px'; }
-    function initDrag() { const els=[document.getElementById('dragAvatar'), document.getElementById('dragText'), document.getElementById('qrContainer')]; let activeEl=null; let startX=0; let startY=0; let initLeft=0; let initTop=0; els.forEach(el=>{el.addEventListener('mousedown',(e)=>{if(!isFreeMode)return;activeEl=el;e.preventDefault();startX=e.clientX;startY=e.clientY;initLeft=activeEl.offsetLeft;initTop=activeEl.offsetTop;if(getComputedStyle(activeEl).position!=='absolute'){activeEl.style.position='absolute';activeEl.style.left=initLeft+'px';activeEl.style.top=initTop+'px';activeEl.style.bottom='auto';activeEl.style.right='auto';}});}); document.addEventListener('mousemove',(e)=>{if(!activeEl)return;const dx=e.clientX-startX;const dy=e.clientY-startY;activeEl.style.left=(initLeft+dx)+'px';activeEl.style.top=(initTop+dy)+'px';}); document.addEventListener('mouseup',()=>{activeEl=null;}); }
-    function enableMotion() { if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') { DeviceMotionEvent.requestPermission().then(r => { if (r=='granted') window.addEventListener('deviceorientation', handleOrientation); }); } else { window.addEventListener('deviceorientation', handleOrientation); } alert("Tilt Enabled!"); }
-    function handleOrientation(e) { if(isFreeMode) return; const c = document.getElementById('captureCard'); const g = document.getElementById('cardGlare'); let x = e.beta; let y = e.gamma; if (x>40) x=40; if (x<-40) x=-40; if (y>40) y=40; if (y<-40) y=-40; c.style.transform = `perspective(1000px) rotateX(${-x/2}deg) rotateY(${y/2}deg)`; g.style.opacity = (Math.abs(x)+Math.abs(y))/50; g.style.background = `linear-gradient(${y*4}deg, rgba(255,255,255,0.4) 0%, transparent 80%)`; }
-    function init3D() { const p = document.getElementById('previewPanel'); const c = document.getElementById('captureCard'); const g = document.getElementById('cardGlare'); p.addEventListener('mousemove', (e) => { if(isFreeMode || window.innerWidth<800) return; const r = c.getBoundingClientRect(); const x = e.clientX - r.left; const y = e.clientY - r.top; const cx = r.width/2; const cy = r.height/2; const rx = ((y-cy)/cy)*-12; const ry = ((x-cx)/cx)*12; c.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg)`; g.style.opacity = '1'; g.style.transform = `translate(${x}px, ${y}px)`; g.style.background = `radial-gradient(circle at ${x}px ${y}px, rgba(255,255,255,0.3) 0%, transparent 80%)`; }); p.addEventListener('mouseleave', () => { c.style.transform = `perspective(1000px) rotateX(0) rotateY(0)`; g.style.opacity = '0'; }); }
-    function toggleQR(cb) { generateQR(); }
-    function toggleFx(f, b) { const l = ['fx-noise','fx-carbon','fx-glass','fx-holo','fx-vignette'].includes(f) ? 'cardTexture' : 'cardFinish'; const el = document.getElementById(l); if(el.classList.contains(f)) { el.classList.remove(f); b.classList.remove('active'); } else { el.className = l === 'cardTexture' ? 'layer-texture' : 'layer-finish'; el.classList.add(f); b.classList.add('active'); } }
-    function setFormat(f, b) { document.getElementById('captureCard').className = `card-wrapper format-${f} style-${document.querySelector('.style-modern.active') ? 'modern' : 'classic'}`; toggleActive(b); }
-    function setStyle(s, b) { document.getElementById('captureCard').className = `card-wrapper format-${document.querySelector('.option-btn[onclick*="format-landscape"].active') ? 'landscape' : 'portrait'} style-${s}`; toggleActive(b); }
-    function setTheme(t, b) { document.getElementById('cardTheme').className = t === 'default' ? `layer-base ${cardState.baseClass}` : `layer-base ${t}`; toggleActive(b); }
-    function toggleActive(b) { b.parentElement.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('active')); b.classList.add('active'); }
-    function updateBaseTheme(c, s, i) { cardState.baseClass = c; cardState.source = s; cardState.icon = i; document.getElementById('cardTheme').className = `layer-base ${c}`; }
-    function setEmojis(e1, e2, e3) { document.getElementById('inEmoji1').value=e1; document.getElementById('inEmoji2').value=e2; document.getElementById('inEmoji3').value=e3; renderCard(); }
-    
-    // DOWNLOAD HELPERS
-    async function prepareVideoForCapture(card) {
-        // If there's a video, pause it, draw to canvas, replace with canvas
-        const video = card.querySelector('video');
-        if (video) {
-            video.pause();
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Create temp img to swap
-            const img = document.createElement('img');
-            img.src = canvas.toDataURL('image/png');
-            img.className = video.className; // Keep styles
-            img.id = 'temp-video-capture';
-            
-            video.style.display = 'none';
-            video.parentNode.insertBefore(img, video);
-            return { video, img };
-        }
-        return null;
-    }
-
-    function restoreVideoAfterCapture(swapData) {
-        if (swapData) {
-            swapData.img.remove();
-            swapData.video.style.display = 'block';
-            swapData.video.play();
-        }
-    }
-
-    // DOWNLOAD
-    function downloadPNG() { 
-        const card = document.getElementById('captureCard'); 
-        const glare = document.getElementById('cardGlare');
-        const prevTransform = card.style.transform;
-        
-        card.style.transform = `perspective(1000px) rotateX(-5deg) rotateY(5deg)`;
-        glare.style.opacity = '0.4'; 
-        glare.style.background = `radial-gradient(circle at 80% 20%, rgba(255,255,255,0.4) 0%, transparent 60%)`;
-
-        setTimeout(async () => {
-            const swap = await prepareVideoForCapture(card);
-            html2canvas(card, { scale: 3, backgroundColor: null, useCORS: true }).then(c => { 
-                const a = document.createElement('a'); a.download = `Card_${cardState.name}.png`; a.href = c.toDataURL("image/png"); a.click(); 
-                restoreVideoAfterCapture(swap);
-                card.style.transform = prevTransform; glare.style.opacity = '0';
-            }); 
-        }, 100);
-    }
-    
-    function downloadPDF() { 
-        const card = document.getElementById('captureCard'); 
-        const prevTransform = card.style.transform;
-        card.style.transform = "none";
-        setTimeout(async () => { 
-            const swap = await prepareVideoForCapture(card);
-            html2canvas(card, { scale: 3, backgroundColor: null, useCORS: true }).then(c => { 
-                const pdf = new window.jspdf.jsPDF({ orientation: document.getElementById('captureCard').classList.contains('format-landscape') ? 'l' : 'p', unit:'px', format:[c.width/3, c.height/3] }); 
-                pdf.addImage(c.toDataURL('image/png'), 'PNG', 0, 0, c.width/3, c.height/3); 
-                const w = pdf.internal.pageSize.getWidth(); const h = pdf.internal.pageSize.getHeight(); 
-                pdf.link(0, 0, w, h, { url: cardState.fullUrl }); 
-                pdf.save(`Card_${cardState.name}.pdf`); 
-                restoreVideoAfterCapture(swap);
-                card.style.transform = prevTransform; 
-            }); 
-        }, 100);
-    }
-
-    // FILE HANDLING - SUPPORT VIDEO & IMAGE
-    const dropArea = document.getElementById('dropArea'); 
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => dropArea.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); }, false)); 
-    dropArea.addEventListener('drop', e => handleFiles(e.dataTransfer.files)); 
-    document.addEventListener('paste', e => { if(e.clipboardData.items) [...e.clipboardData.items].forEach(i => { if(i.type.includes('image') || i.type.includes('video')) applyImageFromBlob(i.getAsFile()); }); });
-    
-    function handleFileSelect(i) { handleFiles(i.files); } 
-    function handleFiles(f) { if(f[0]) applyImageFromBlob(f[0]); }
-    
-    function applyImageFromBlob(blob) {
-        const url = URL.createObjectURL(blob);
-        const container = document.getElementById('outAvatar');
-        
-        // VIDEO CHECK
-        if (blob.type.startsWith('video/')) {
-            container.innerHTML = `<video src="${url}" class="c-img" autoplay loop muted playsinline></video>`;
-        } else {
-            // IMAGE/GIF
-            container.innerHTML = `<img src="${url}" class="c-img">`;
-        }
-    }
-</script>
+<script src="script.js"></script>
 </body>
 </html>
